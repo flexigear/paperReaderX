@@ -102,6 +102,14 @@ async def list_papers() -> list[dict]:
         return papers
 
 
+async def delete_paper(paper_id: str) -> None:
+    async with _connect() as db:
+        await db.execute("DELETE FROM chat_messages WHERE paper_id = ?", (paper_id,))
+        await db.execute("DELETE FROM results WHERE paper_id = ?", (paper_id,))
+        await db.execute("DELETE FROM papers WHERE id = ?", (paper_id,))
+        await db.commit()
+
+
 async def get_paper(paper_id: str) -> dict | None:
     async with _connect() as db:
         db.row_factory = aiosqlite.Row

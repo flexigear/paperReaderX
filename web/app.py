@@ -98,6 +98,19 @@ async def list_papers():
     return papers
 
 
+@app.delete("/api/papers/{paper_id}")
+async def delete_paper(paper_id: str):
+    paper = await models.get_paper(paper_id)
+    if not paper:
+        raise HTTPException(404, "Paper not found")
+    # Delete PDF file
+    pdf_path = Path(paper["pdf_path"])
+    pdf_path.unlink(missing_ok=True)
+    # Delete from DB
+    await models.delete_paper(paper_id)
+    return JSONResponse({"ok": True})
+
+
 @app.get("/api/papers/{paper_id}")
 async def get_paper(paper_id: str):
     paper = await models.get_paper(paper_id)

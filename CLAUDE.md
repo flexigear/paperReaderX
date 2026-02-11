@@ -35,6 +35,11 @@ ljg-xray-paper/
 │       ├── index.html       # 三 Tab SPA（UPLOAD / PAPER / RESULTS）
 │       ├── style.css        # 暗色主题，响应式
 │       └── app.js           # 前端交互逻辑
+├── bin/                     # 服务管理脚本
+│   ├── start.sh             # 后台启动（日志写入 web/data/app.log）
+│   ├── stop.sh              # 停止服务
+│   ├── status.sh            # 查看运行状态
+│   └── restart.sh           # 重启服务
 ├── README.md
 ├── CLAUDE.md
 └── LICENSE                  # MIT
@@ -58,16 +63,22 @@ ljg-xray-paper/
 
 ```
 Browser (3 tabs: UPLOAD / PAPER / RESULTS)
-  ├── POST /api/upload          → 上传 PDF，自动触发三语言分析
-  ├── GET  /api/papers          → 论文列表
-  ├── GET  /api/papers/{id}/page/{n} → PDF 单页 PNG
-  ├── GET  /api/papers/{id}/result?lang=zh → 分析结果（JSON 或 SSE）
-  └── POST /api/papers/{id}/chat → AI 对话（SSE 流式）
+  ├── POST   /api/upload              → 上传 PDF，自动触发三语言分析
+  ├── GET    /api/papers              → 论文列表
+  ├── DELETE /api/papers/{id}         → 删除论文（PDF + DB 记录全部清除）
+  ├── GET    /api/papers/{id}/page/{n} → PDF 单页 PNG
+  ├── GET    /api/papers/{id}/result?lang=zh → 分析结果（JSON 或 SSE）
+  └── POST   /api/papers/{id}/chat    → AI 对话（SSE 流式）
 FastAPI (async, port 8899)
   ├── SQLite (papers / results / chat_messages)
   ├── PyMuPDF (PDF 文本提取 + 页面渲染)
   └── claude CLI subprocess (分析 + 对话)
 ```
+
+**三 Tab 交互**：
+- **UPLOAD**：拖拽/点击上传 PDF + 论文列表（含删除按钮），点击论文切换 PAPER 和 RESULTS 显示
+- **PAPER**：PDF 逐页查看器（服务端渲染 PNG）
+- **RESULTS**：显示当前选中论文的分析结果（EN/JA/ZH 语言切换）+ AI Chat
 
 **Web 版对 SKILL.md 的适配**：
 - 去掉步骤 1（等待输入）→ 直接分析 `<paper>` 内的文本
@@ -90,10 +101,14 @@ FastAPI (async, port 8899)
 - ASCII 图表限制：仅使用基础 ASCII 符号（`+`, `-`, `|`, `>`, `<`, `/`, `\`, `*`, `=`, `.`），禁止 Unicode
 
 ### Web 前端
-- **启动**：`cd web && .venv/bin/python app.py`（端口 8899）
+- **启动**：`bin/start.sh`（后台运行，端口 8899，日志 `web/data/app.log`）
+- **停止/重启/状态**：`bin/stop.sh` / `bin/restart.sh` / `bin/status.sh`
+- **手动前台启动**（开发调试）：`cd web && .venv/bin/python app.py`
 - **依赖安装**：`cd web && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt`
 - **数据库重置**：删除 `web/data/papers.db`，重启服务即自动重建
+- **删除论文**：通过 UPLOAD 列表的删除按钮，或 `DELETE /api/papers/{id}`，会同时删除 PDF 文件、分析结果和聊天记录
 - 前端无构建步骤，纯 vanilla JS + marked.js (CDN)
+- uvicorn 已关闭 reload（避免 watchfiles 循环），改代码后需手动 `bin/restart.sh`
 
 ### Claude CLI 调用注意事项（重要）
 
