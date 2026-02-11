@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paper X-ray</title>
+  <link rel="stylesheet" href="/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Paper X-ray</h1>
+    <nav id="tabs">
+      <button class="tab active" data-tab="upload">UPLOAD</button>
+      <button class="tab" data-tab="paper">PAPER</button>
+      <button class="tab" data-tab="results">RESULTS</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- UPLOAD TAB -->
+    <section id="tab-upload" class="tab-content active">
+      <div id="drop-zone">
+        <p>Drop PDF here or click to upload</p>
+        <input type="file" id="file-input" accept=".pdf" hidden>
+      </div>
+      <div id="upload-status" class="status-msg" hidden></div>
+      <h2>Papers</h2>
+      <div id="paper-list" class="paper-list"></div>
+    </section>
+
+    <!-- PAPER TAB -->
+    <section id="tab-paper" class="tab-content">
+      <div id="paper-viewer">
+        <div id="no-paper-msg" class="empty-state">Select a paper from UPLOAD tab</div>
+        <div id="pdf-controls" hidden>
+          <button id="prev-page">&lt; Prev</button>
+          <span id="page-info">1 / 1</span>
+          <button id="next-page">Next &gt;</button>
+        </div>
+        <div id="pdf-page-container">
+          <img id="pdf-page-img" alt="PDF page">
+        </div>
+      </div>
+    </section>
+
+    <!-- RESULTS TAB -->
+    <section id="tab-results" class="tab-content">
+      <div id="no-result-msg" class="empty-state">Select a paper from UPLOAD tab</div>
+      <div id="results-panel" hidden>
+        <div id="lang-switch">
+          <button class="lang-btn active" data-lang="en">EN</button>
+          <button class="lang-btn" data-lang="ja">JA</button>
+          <button class="lang-btn" data-lang="zh">ZH</button>
+        </div>
+        <div id="result-status" class="status-msg"></div>
+        <div id="result-content" class="markdown-body"></div>
+
+        <div id="chat-section">
+          <h3>AI Chat</h3>
+          <div id="chat-messages"></div>
+          <div id="chat-input-row">
+            <input type="text" id="chat-input" placeholder="Ask about this paper...">
+            <button id="chat-send">Send</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
