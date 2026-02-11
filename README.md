@@ -1,6 +1,8 @@
-# ljg-skill-xray-paper
+# paperReaderX
 
-论文X光机 (Paper X-Ray Scanner) — 一个 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) Skill，解构学术论文，穿透学术黑话，还原作者最底层的逻辑模型。
+论文X光机 Web 版 — 上传 PDF，自动生成三语言（EN/JA/ZH）X-ray 分析报告，支持 PDF 在线阅读和基于论文的 AI 对话。
+
+基于 [lijigang/ljg-skill-xray-paper](https://github.com/lijigang/ljg-skill-xray-paper) 的 Claude Code Skill 扩展开发，新增 Web 前端。
 
 ## 功能
 
@@ -35,6 +37,10 @@
 - **CRITIQUE** — 隐形假设与未解之谜
 - **LOGIC FLOW** — ASCII 逻辑结构图
 - **NAPKIN SKETCH** — ASCII 餐巾纸图
+
+## Credits
+
+- 原始 Skill 插件：[lijigang/ljg-skill-xray-paper](https://github.com/lijigang/ljg-skill-xray-paper)（分析 prompt 和模板源自此项目）
 
 ## License
 
