@@ -114,12 +114,13 @@ FastAPI (async, port 8899)
 
 在 `analyzer.py` 中调用 claude CLI 时，以下经验至关重要：
 
-1. **`--tools ""`**：必须禁用所有工具。否则 Claude 会读取项目中的 CLAUDE.md/SKILL.md，触发工具调用（如 Write）而非直接输出文本，导致 `result` 字段为空
+1. **`--tools "Read"`**：启用 Read 工具让 Claude 直接读取 PDF 文件（多模态，能看到图片、表格、公式）。不启用 Write/Bash 等工具，防止 Claude 写文件或执行命令。system prompt 中也需明确指示"不要写文件"
 2. **`--system-prompt`**（不是 `--system`）：参数名必须完整
 3. **`--verbose`**：`--output-format stream-json` 必须搭配 `--verbose`，否则报错
-4. **prompt 通过 stdin 传入**：论文文本通常 30000+ 字符，超出 OS 命令行参数长度限制，必须用 stdin 而非 `-p <prompt>` 传入。用法：`claude -p` （不带参数）+ stdin 写入
+4. **prompt 通过 stdin 传入**：`claude -p`（不带参数）+ stdin 写入，避免 OS 命令行参数长度限制
 5. **stream-json 输出格式**：三种事件类型——`system`（init）、`assistant`（含 message.content）、`result`（含最终 result 文本）。当前实现只从 `result` 事件提取文本
-6. **`reload_excludes=["data/*"]`**：uvicorn reload 必须排除 data 目录，否则 SQLite 写入会触发服务重启，中断 SSE 连接
+6. **`limit=10*1024*1024`**：`asyncio.create_subprocess_exec` 的 stdout 行缓冲必须设为 10MB+。Claude 读取 PDF 后生成的 JSON 行可能非常大（包含 base64 图片数据），默认 64KB 会触发 `LimitOverrunError`
+7. **uvicorn 已关闭 reload**：避免 watchfiles 检测到 data/ 变化导致无限重启循环
 
 ### aiosqlite 用法注意
 

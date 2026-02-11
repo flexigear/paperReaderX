@@ -12,9 +12,12 @@ log = logging.getLogger(__name__)
 # --- X-ray analysis prompt (adapted from SKILL.md for web) ---
 
 XRAY_SYSTEM = """你是 **深层学术解析员**，一名拥有极高结构化思维的"审稿人"。
-你的任务不是"总结"论文，而是"解构"论文。穿透学术黑话的迷雾，还原作者最底层的逻辑模型。"""
+你的任务不是"总结"论文，而是"解构"论文。穿透学术黑话的迷雾，还原作者最底层的逻辑模型。
+重要：直接输出 markdown 分析报告，不要调用任何工具写文件。"""
 
-XRAY_PROMPT_TEMPLATE = """请分析以下学术论文。
+XRAY_PROMPT_TEMPLATE = """请先使用 Read 工具读取以下 PDF 论文文件，然后对其进行深度分析。
+
+论文文件路径: {pdf_path}
 
 ## 执行认知提取算法
 
@@ -35,7 +38,7 @@ XRAY_PROMPT_TEMPLATE = """请分析以下学术论文。
 
 ## 输出格式
 
-请严格按照以下 markdown 模板输出分析报告：
+请严格按照以下 markdown 模板输出分析报告（直接输出文本，不要写文件）：
 
 # xray-{{简短标题}}
 
@@ -105,13 +108,7 @@ XRAY_PROMPT_TEMPLATE = """请分析以下学术论文。
 
 ## 语言要求
 
-请使用{lang_name}输出所有分析内容。
-
-## 论文内容
-
-<paper>
-{paper_text}
-</paper>"""
+请使用{lang_name}输出所有分析内容。"""
 
 LANG_NAMES = {
     "en": "English",
@@ -120,23 +117,21 @@ LANG_NAMES = {
 }
 
 
-def build_analysis_prompt(paper_text: str, lang: str) -> str:
+def build_analysis_prompt(pdf_path: str, lang: str) -> str:
     lang_name = LANG_NAMES.get(lang, "English")
-    return XRAY_PROMPT_TEMPLATE.format(paper_text=paper_text, lang_name=lang_name)
+    return XRAY_PROMPT_TEMPLATE.format(pdf_path=pdf_path, lang_name=lang_name)
 
 
-def build_chat_prompt(paper_text: str, result_content: str,
+def build_chat_prompt(pdf_path: str, result_content: str,
                       chat_history: list[dict], user_message: str) -> str:
     history_str = ""
     for msg in chat_history:
         role = "User" if msg["role"] == "user" else "Assistant"
         history_str += f"{role}: {msg['content']}\n\n"
 
-    return f"""基于以下论文内容和 X-ray 分析报告回答用户问题。请直接、准确地回答。
+    return f"""基于论文和 X-ray 分析报告回答用户问题。请直接、准确地回答。不要调用任何工具写文件。
 
-<paper>
-{paper_text}
-</paper>
+请先用 Read 工具读取论文: {pdf_path}
 
 <xray-report>
 {result_content}
@@ -149,27 +144,31 @@ def build_chat_prompt(paper_text: str, result_content: str,
 用户问题: {user_message}"""
 
 
-async def stream_claude_cli(prompt: str, system: str | None = None) -> AsyncGenerator[str, None]:
+async def stream_claude_cli(prompt: str, system: str | None = None,
+                            use_read: bool = False) -> AsyncGenerator[str, None]:
     """Run claude CLI and yield text chunks from stream-json output.
 
     Passes prompt via stdin to avoid OS argument length limits.
+    use_read=True enables the Read tool so Claude can read PDF files (multimodal).
     """
+    tools = "Read" if use_read else ""
     cmd = [
         "claude", "-p",
         "--output-format", "stream-json",
         "--verbose",
         "--model", "sonnet",
-        "--tools", "",
+        "--tools", tools,
     ]
     if system:
         cmd.extend(["--system-prompt", system])
 
-    log.info("Starting claude CLI (prompt via stdin, %d chars)", len(prompt))
+    log.info("Starting claude CLI (prompt via stdin, %d chars, tools=%s)", len(prompt), tools)
     proc = await asyncio.create_subprocess_exec(
         *cmd,
         stdin=asyncio.subprocess.PIPE,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
+        limit=10 * 1024 * 1024,  # 10MB line buffer (PDF content in JSON can be very large)
     )
 
     # Send prompt via stdin
@@ -218,8 +217,8 @@ async def run_analysis(paper_id: str, lang: str) -> None:
     await models.update_result_status(result_id, "running")
 
     try:
-        prompt = build_analysis_prompt(paper["text"], lang)
-        async for chunk in stream_claude_cli(prompt, system=XRAY_SYSTEM):
+        prompt = build_analysis_prompt(paper["pdf_path"], lang)
+        async for chunk in stream_claude_cli(prompt, system=XRAY_SYSTEM, use_read=True):
             await models.append_result_content(result_id, chunk)
 
         await models.update_result_status(result_id, "done")
@@ -258,10 +257,10 @@ async def stream_chat(paper_id: str, user_message: str) -> AsyncGenerator[str, N
     # Save user message
     await models.add_chat_message(paper_id, "user", user_message)
 
-    prompt = build_chat_prompt(paper["text"], result_content, history, user_message)
+    prompt = build_chat_prompt(paper["pdf_path"], result_content, history, user_message)
 
     full_response = []
-    async for chunk in stream_claude_cli(prompt):
+    async for chunk in stream_claude_cli(prompt, use_read=True):
         full_response.append(chunk)
         yield chunk
 
